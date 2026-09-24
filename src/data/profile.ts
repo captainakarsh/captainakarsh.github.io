@@ -43,9 +43,7 @@ export const profile = {
   available: true,
   socials: {
     github: "https://github.com/captainakarsh",
-    // Paste your full LinkedIn profile URL here (e.g. https://www.linkedin.com/in/<handle>/)
-    // to show it across the site. Left empty because the resume only had a placeholder link.
-    linkedin: "" as string,
+    linkedin: "https://www.linkedin.com/in/akarsh-singh-4736881ba" as string,
   },
   summary:
     "Full Stack Developer with 3.5 years of experience designing and delivering scalable enterprise applications, AI-powered SaaS products, and cloud-native microservices. Proficient in Java, Spring Boot, Node.js and React, with hands-on expertise in Google Cloud Platform, Docker and CI/CD automation. Sole architect and engineer behind two production SaaS products — AxaPDF and NonriX — serving real users at scale.",

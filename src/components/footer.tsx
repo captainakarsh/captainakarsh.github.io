@@ -122,12 +122,12 @@ export function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://github.com/captainakarsh/captainakarsh.github.io"
+                    href={profile.socials.linkedin}
                     target="_blank"
                     rel="noreferrer"
                     className="text-muted transition-colors hover:text-fg"
                   >
-                    Source code
+                    LinkedIn
                   </a>
                 </li>
               </ul>
@@ -137,7 +137,7 @@ export function Footer() {
 
         <div className="mt-14 flex flex-col-reverse gap-4 border-t border-line pt-6 font-mono text-xs text-subtle md:flex-row md:items-center md:justify-between">
           <p>
-            © {year} {profile.name} · Built with Next.js, deployed on Vercel
+            © {year} {profile.name}. All rights reserved.
           </p>
           <div className="flex items-center gap-5">
             <ApiStatus />

@@ -264,7 +264,7 @@ export function ChatWidget() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">Akarsh&apos;s AI assistant</p>
-                <p className="truncate text-xs text-subtle">Grounded in his résumé · DeepSeek</p>
+                <p className="truncate text-xs text-subtle">Ask about his experience, projects & skills</p>
               </div>
               {messages.length > 0 && (
                 <button
