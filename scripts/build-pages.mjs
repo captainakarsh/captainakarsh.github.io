@@ -24,5 +24,9 @@ try {
 } finally {
   renameSync(PARKED, API_DIR);
 }
-if (status === 0) writeFileSync("out/.nojekyll", "");
+if (status === 0) {
+  writeFileSync("out/.nojekyll", "");
+  // The gh-pages branch holds only built files; stop Vercel from trying to build it.
+  writeFileSync("out/vercel.json", JSON.stringify({ git: { deploymentEnabled: false } }, null, 2) + "\n");
+}
 process.exit(status);
