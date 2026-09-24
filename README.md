@@ -57,8 +57,8 @@ Other scripts: `npm run lint`, `npm run typecheck`, `npm run build` (Vercel buil
 
 ### 2. GitHub Pages
 
-1. In **Settings → Pages**, set **Source** to **GitHub Actions**.
+1. In **Settings → Pages**, set **Source** to **Deploy from a branch**, then choose **`gh-pages`** and **`/ (root)`**.
 2. If your Vercel URL isn't `https://captainakarsh-github-io.vercel.app`, add a repository variable `API_BASE_URL` with the real URL under **Settings → Secrets and variables → Actions → Variables**.
-3. Push to `main`. [`.github/workflows/pages.yml`](.github/workflows/pages.yml) builds the static export and publishes it.
+3. Push to `main`. [`.github/workflows/pages.yml`](.github/workflows/pages.yml) builds the static export and force-pushes it to the `gh-pages` branch. To publish by hand, run `npm run build:pages` and push the contents of `out/` to `gh-pages`.
 
 `https://captainakarsh.github.io` is already allowed by the API's CORS policy. To call the API from other origins, add them to `ALLOWED_ORIGINS`.
