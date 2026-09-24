@@ -50,7 +50,7 @@ function buildCommands(router: ReturnType<typeof useRouter>): Command[] {
       run: () => window.open(p.url, "_blank", "noopener"),
     }));
   const actions: Command[] = [
-    { id: "ai", group: "Actions", label: "Ask the AI assistant", keywords: "chat claude question", icon: Sparkles, run: () => openChat() },
+    { id: "ai", group: "Actions", label: "Ask the AI assistant", keywords: "chat ai question", icon: Sparkles, run: () => openChat() },
     { id: "copy-email", group: "Actions", label: "Copy email address", hint: profile.email, icon: Copy, run: () => copyText(profile.email, "Email copied") },
     { id: "email", group: "Actions", label: "Send an email", icon: Mail, run: () => (location.href = `mailto:${profile.email}`) },
     { id: "resume", group: "Actions", label: "View résumé", keywords: "cv resume pdf print", icon: FileText, run: () => router.push("/resume") },

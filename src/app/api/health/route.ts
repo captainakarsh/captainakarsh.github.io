@@ -11,7 +11,7 @@ export function GET(req: Request) {
       status: "ok",
       region: process.env.VERCEL_REGION ?? "local",
       features: {
-        chat: Boolean(process.env.ANTHROPIC_API_KEY),
+        chat: Boolean(process.env.DEEPSEEK_API_KEY),
         contact: Boolean(process.env.RESEND_API_KEY || process.env.CONTACT_WEBHOOK_URL),
       },
       time: new Date().toISOString(),

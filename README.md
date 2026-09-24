@@ -10,7 +10,7 @@ Personal portfolio of **Akarsh Singh**, Full Stack Engineer. Built with Next.js 
 - Animated hero with a live-typed code card, rotating focus line and count-up stats
 - Bento "About" grid with a live IST clock, experience timeline with scroll-linked progress
 - Filterable projects with animated product mockups for AxaPDF and NonriX
-- **AI assistant** that streams answers about Akarsh's experience from the Claude API (`/api/chat`)
+- **AI assistant** that streams answers about Akarsh's experience from DeepSeek (`/api/chat`)
 - **Contact form** with validation, honeypot and rate limiting, delivered by email (Resend) and/or a Discord/Slack webhook (`/api/contact`)
 - ⌘K / Ctrl K command palette, dark/light theme, toasts, scroll progress, reduced-motion support
 - Printable résumé page at `/resume` (Save as PDF)
@@ -32,7 +32,7 @@ All content lives in [`src/data/profile.ts`](src/data/profile.ts). Edit it there
 
 | Route | Method | Purpose |
 | --- | --- | --- |
-| `/api/chat` | POST | Streams a Claude answer grounded in `profile.ts` (plain-text stream) |
+| `/api/chat` | POST | Streams a DeepSeek answer grounded in `profile.ts` (plain-text stream) |
 | `/api/contact` | POST | Validates and delivers contact-form messages |
 | `/api/health` | GET | Status, serving region and which features are configured |
 | `/api/profile` | GET | The portfolio data as JSON (public, CORS-open) |
@@ -52,7 +52,7 @@ Other scripts: `npm run lint`, `npm run typecheck`, `npm run build` (Vercel buil
 ### 1. Vercel (Mumbai)
 
 1. Import this repository at <https://vercel.com/new>. The framework is detected automatically.
-2. Add the environment variables from [`.env.example`](.env.example): at least `ANTHROPIC_API_KEY` for the AI assistant, plus `RESEND_API_KEY` or `CONTACT_WEBHOOK_URL` for the contact form.
+2. Add the environment variables from [`.env.example`](.env.example): at least `DEEPSEEK_API_KEY` for the AI assistant, plus `RESEND_API_KEY` or `CONTACT_WEBHOOK_URL` for the contact form.
 3. Deploy. [`vercel.json`](vercel.json) pins the functions to `bom1` (Mumbai).
 
 ### 2. GitHub Pages

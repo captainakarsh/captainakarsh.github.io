@@ -1,13 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { profile } from "@/data/profile";
 import { SYSTEM_PROMPT } from "@/lib/server/assistant";
 import { clientIp, corsHeaders, isOriginAllowed, json, preflight, rateLimit } from "@/lib/server/http";
 
 export const maxDuration = 60;
 
-const MODEL = process.env.CHAT_MODEL || "claude-opus-5";
-// Server-side refusal fallbacks are available on the Opus 5 / Fable 5 families.
-const SUPPORTS_FALLBACKS = /^claude-(opus-5|fable-5)/.test(MODEL);
+// DeepSeek's API is OpenAI-compatible. deepseek-chat is the low-cost general model.
+const API_URL = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "") + "/chat/completions";
+const MODEL = process.env.CHAT_MODEL || "deepseek-chat";
 
 const MAX_MESSAGES = 16;
 const MAX_MESSAGE_CHARS = 1500;
@@ -33,10 +32,17 @@ function parseMessages(body: unknown): ChatTurn[] | string {
     turns.push({ role, content: text });
   }
   if (total > MAX_TOTAL_CHARS) return "This conversation is getting long — please start a new one.";
-  // The API requires the conversation to start with the user and to end on a user turn.
+  // Conversations must start with the user and end on a user turn.
   while (turns.length && turns[0].role !== "user") turns.shift();
   if (!turns.length || turns[turns.length - 1].role !== "user") return "The last message must come from the user.";
   return turns;
+}
+
+function upstreamErrorMessage(status: number): string {
+  if (status === 429) return "The assistant is busy right now. Please try again in a minute.";
+  if (status === 401 || status === 403) return "The assistant is misconfigured. Please use the contact form instead.";
+  if (status === 402) return "The assistant is temporarily unavailable. Please use the contact form instead.";
+  return "Something went wrong while answering. Please try again.";
 }
 
 export function OPTIONS(req: Request) {
@@ -46,7 +52,8 @@ export function OPTIONS(req: Request) {
 export async function POST(req: Request) {
   if (!isOriginAllowed(req)) return json(req, { error: "Origin not allowed." }, { status: 403 });
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
     return json(req, { error: "The AI assistant isn't configured yet.", code: "not_configured" }, { status: 503 });
   }
 
@@ -71,37 +78,68 @@ export async function POST(req: Request) {
   const messages = parseMessages(body);
   if (typeof messages === "string") return json(req, { error: messages }, { status: 400 });
 
-  const client = new Anthropic();
-  const stream = client.beta.messages.stream(
-    {
-      model: MODEL,
-      // Visitor-facing chat on the owner's key: short answers, capped spend.
-      max_tokens: 4096,
-      output_config: { effort: "low" },
-      cache_control: { type: "ephemeral" },
-      system: SYSTEM_PROMPT,
-      messages,
-      ...(SUPPORTS_FALLBACKS ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
-    },
-    { signal: req.signal },
-  );
+  let upstream: Response;
+  try {
+    upstream = await fetch(API_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        stream: true,
+        // Visitor-facing chat on the owner's key: short answers, capped spend.
+        max_tokens: 800,
+        temperature: 0.5,
+      }),
+      signal: req.signal,
+    });
+  } catch (error) {
+    console.error("chat: could not reach DeepSeek", error);
+    return json(req, { error: upstreamErrorMessage(502) }, { status: 502 });
+  }
 
+  if (!upstream.ok || !upstream.body) {
+    console.error("chat: DeepSeek responded", upstream.status, await upstream.text().catch(() => ""));
+    return json(req, { error: upstreamErrorMessage(upstream.status) }, { status: 502 });
+  }
+
+  // Convert DeepSeek's server-sent events into a plain text stream for the widget.
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   const body$ = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let buffer = "";
+      let finish: string | null = null;
       try {
-        for await (const event of stream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-            controller.enqueue(encoder.encode(event.delta.text));
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            const data = line.trim();
+            if (!data.startsWith("data:")) continue;
+            const payload = data.slice(5).trim();
+            if (payload === "[DONE]") continue;
+            try {
+              const chunk = JSON.parse(payload) as {
+                choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[];
+              };
+              const choice = chunk.choices?.[0];
+              if (choice?.delta?.content) controller.enqueue(encoder.encode(choice.delta.content));
+              if (choice?.finish_reason) finish = choice.finish_reason;
+            } catch {
+              // Ignore keep-alive comments and partial lines.
+            }
           }
         }
-        const final = await stream.finalMessage();
-        if (final.stop_reason === "refusal") {
+        if (finish === "length") controller.enqueue(encoder.encode("…"));
+        if (finish === "content_filter") {
           controller.enqueue(
             encoder.encode(`\n\nI can't help with that one — feel free to ask about ${profile.firstName}'s work instead.`),
           );
-        } else if (final.stop_reason === "max_tokens") {
-          controller.enqueue(encoder.encode("…"));
         }
         controller.close();
       } catch (error) {
@@ -109,22 +147,13 @@ export async function POST(req: Request) {
           controller.close();
           return;
         }
-        let message = "Something went wrong while answering. Please try again.";
-        if (error instanceof Anthropic.RateLimitError) {
-          message = "The assistant is busy right now. Please try again in a minute.";
-        } else if (error instanceof Anthropic.AuthenticationError) {
-          message = "The assistant is misconfigured. Please use the contact form instead.";
-        } else if (error instanceof Anthropic.APIError) {
-          console.error("chat: Anthropic API error", error.status, error.message);
-        } else {
-          console.error("chat: unexpected error", error);
-        }
-        controller.enqueue(encoder.encode(`\n\n⚠️ ${message}`));
+        console.error("chat: stream failed", error);
+        controller.enqueue(encoder.encode(`\n\n⚠️ ${upstreamErrorMessage(500)}`));
         controller.close();
       }
     },
     cancel() {
-      stream.abort();
+      reader.cancel().catch(() => {});
     },
   });
 
